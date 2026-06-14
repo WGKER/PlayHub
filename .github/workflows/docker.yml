@@ -38,7 +38,7 @@ jobs:
 
       - name: Export image to tar archive
         run: |
-          ARTIFACT_NAME="${{ env.ARTIFACT_PREFIX }}-${{ github.sha }}-${{ matrix/platform }}"
+          ARTIFACT_NAME="${{ env.ARTIFACT_PREFIX }}-${{ github.sha }}-${{ matrix.platform }}"
           docker save -o "${ARTIFACT_NAME}.tar" ${{ env.IMAGE_REGISTRY_NAME }}:${{ env.IMAGE_TAG }}
 
       - name: Upload tar package to artifacts
