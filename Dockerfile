@@ -14,10 +14,8 @@ ENV APP_PORT=18080 \
     APP_SPIDER_OPERATION_MAX_CONCURRENCY=2 \
     APP_SCRIPT_MAX_CONCURRENCY=2
 
-# 替换国内镜像源，解决海外apt下载慢
-RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list \
-    && sed -i 's/security.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list \
-    && apt-get update \
+# 移除错误sed换源，原生官方源直接安装
+RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
         ca-certificates \
