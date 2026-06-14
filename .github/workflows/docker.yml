@@ -5,8 +5,8 @@ on:
 
 env:
   # 仅在此一处自定义，全文自动复用
-  IMAGE_REGISTRY_NAME: hurryos/playhub
-  IMAGE_TAG: local-build
+  IMAGE_REGISTRY_NAME: playhub
+  IMAGE_TAG: test
   ARTIFACT_PREFIX: playhub
 
 jobs:
