@@ -1,10 +1,9 @@
-name: Docker Build Multi-Arch (No Push, Download Test)
+name: Docker Build ARM64 Only (No Push, Download Test)
 
 on:
   workflow_dispatch:
 
 env:
-  # 仅在此一处自定义，全文自动复用
   IMAGE_REGISTRY_NAME: playhub
   IMAGE_TAG: test
   ARTIFACT_PREFIX: playhub
@@ -12,11 +11,7 @@ env:
 jobs:
   build-and-export:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    strategy:
-      matrix:
-        platform: [linux/amd64, linux/arm64]
-
+    timeout-minutes: 60  # 拉到60分钟，彻底避免模拟构建超时
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,25 +22,25 @@ jobs:
       - name: Set up Docker Buildx builder
         uses: docker/setup-buildx-action@v3
 
-      - name: Build single arch image & load locally
+      - name: Build arm64 image & load locally
         uses: docker/build-push-action@v6
         with:
-          platforms: ${{ matrix.platform }}
+          platforms: linux/arm64
           push: false
           load: true
           pull: true
           tags: ${{ env.IMAGE_REGISTRY_NAME }}:${{ env.IMAGE_TAG }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max
 
       - name: Export image to tar archive
         run: |
-          ARTIFACT_NAME="${{ env.ARTIFACT_PREFIX }}-${{ github.sha }}-${{ matrix.platform }}"
+          ARTIFACT_NAME="${{ env.ARTIFACT_PREFIX }}-${{ github.sha }}-linux_arm64"
           docker save -o "${ARTIFACT_NAME}.tar" ${{ env.IMAGE_REGISTRY_NAME }}:${{ env.IMAGE_TAG }}
 
       - name: Upload tar package to artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARTIFACT_PREFIX }}-${{ github.sha }}-${{ matrix.platform }}
-          path: ${{ env.ARTIFACT_PREFIX }}-${{ github.sha }}-${{ matrix.platform }}.tar
+          name: ${{ env.ARTIFACT_PREFIX }}-${{ github.sha }}-linux_arm64
+          path: ${{ env.ARTIFACT_PREFIX }}-${{ github.sha }}-linux_arm64.tar
           retention-days: 30
