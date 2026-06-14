@@ -1,9 +1,8 @@
 # syntax=docker/dockerfile:1
-
 FROM node:22-bookworm-slim
 
 LABEL org.opencontainers.image.title="playhub"
-LABEL org.opencontainers.image.description="TVBox Web frontend/backend runtime image"
+LABEL org.opencontainers.image.description="TVBox Web frontend/backend runtime image, amd64 & arm64 compatible"
 
 ENV APP_PORT=18080 \
     APP_CACHE_DIR=/opt/playhub/data/cache \
@@ -25,17 +24,27 @@ RUN apt-get update \
         python3 \
         python3-pip \
         python3-venv \
+        unzip \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/playhub
 
+# 1. 不再拷贝本地x86专属 dex-tools 文件夹
 COPY target/playhub-*.jar app/playhub.jar
 COPY scripts/ scripts/
-COPY tools/dex-tools-v2.4/ tools/dex-tools-v2.4/
 COPY docker/application.yml config/application.yml
 
+# 2. 构建阶段在线拉取 dex2jar 纯Java发行包（无原生二进制，架构无关）
+RUN mkdir -p tools && cd tools \
+    && curl -fsSL https://github.com/pxb1988/dex2jar/releases/download/v2.4/dex-tools-v2.4.zip -o dex-tools.zip \
+    && unzip -q dex-tools.zip \
+    && rm -f dex-tools.zip \
+    && chmod +x dex-tools-v2.4/*.sh \
+    # 清理压缩包残留
+    && rm -rf dex-tools-v2.4/*.exe dex-tools-v2.4/*.bat dex-tools-v2.4/*.dll
+
+# 目录创建、权限、清理缓存文件
 RUN mkdir -p data/cache logs run .cache/android-cache .cache/android-external .cache/android-files \
-    && chmod +x tools/dex-tools-v2.4/*.sh \
     && find scripts -type d -name __pycache__ -prune -exec rm -rf {} + \
     && find scripts -type f -name "*.pyc" -delete \
     && groupadd -r playhub \
