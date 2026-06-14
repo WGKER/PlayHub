@@ -2,7 +2,7 @@
 FROM node:22-bookworm-slim
 
 LABEL org.opencontainers.image.title="playhub"
-LABEL org.opencontainers.image.description="TVBox Web frontend/backend runtime image, amd64 & arm64 compatible"
+LABEL org.opencontainers.image.description="TVBox Web frontend/backend runtime image, arm64 compatible"
 
 ENV APP_PORT=18080 \
     APP_CACHE_DIR=/opt/playhub/data/cache \
@@ -14,7 +14,10 @@ ENV APP_PORT=18080 \
     APP_SPIDER_OPERATION_MAX_CONCURRENCY=2 \
     APP_SCRIPT_MAX_CONCURRENCY=2
 
-RUN apt-get update \
+# 替换国内镜像源，解决海外apt下载慢
+RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list \
+    && sed -i 's/security.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list \
+    && apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
         ca-certificates \
@@ -29,22 +32,18 @@ RUN apt-get update \
 
 WORKDIR /opt/playhub
 
-# 1. 不再拷贝本地x86专属 dex-tools 文件夹
 COPY target/playhub-*.jar app/playhub.jar
 COPY scripts/ scripts/
 COPY docker/application.yml config/application.yml
 
-# 2. 构建阶段在线拉取 dex2jar 纯Java发行包（无原生二进制，架构无关）
+# 容器内在线拉取dex-tools纯Java包，无架构绑定
 RUN mkdir -p tools && cd tools \
     && curl -fsSL https://github.com/pxb1988/dex2jar/releases/download/v2.4/dex-tools-v2.4.zip -o dex-tools.zip \
     && unzip -q dex-tools.zip \
     && rm -f dex-tools.zip \
     && chmod +x dex-tools-v2.4/*.sh \
-    # 清理压缩包残留
-    && rm -rf dex-tools-v2.4/*.exe dex-tools-v2.4/*.bat dex-tools-v2.4/*.dll
-
-# 目录创建、权限、清理缓存文件
-RUN mkdir -p data/cache logs run .cache/android-cache .cache/android-external .cache/android-files \
+    && rm -rf dex-tools-v2.4/*.exe dex-tools-v2.4/*.bat dex-tools-v2.4/*.dll \
+    && mkdir -p data/cache logs run .cache/android-cache .cache/android-external .cache/android-files \
     && find scripts -type d -name __pycache__ -prune -exec rm -rf {} + \
     && find scripts -type f -name "*.pyc" -delete \
     && groupadd -r playhub \
