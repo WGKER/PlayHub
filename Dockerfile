@@ -14,7 +14,6 @@ ENV APP_PORT=18080 \
     APP_SPIDER_OPERATION_MAX_CONCURRENCY=2 \
     APP_SCRIPT_MAX_CONCURRENCY=2
 
-# 移除错误sed换源，原生官方源直接安装
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
@@ -34,17 +33,21 @@ COPY target/playhub-*.jar app/playhub.jar
 COPY scripts/ scripts/
 COPY docker/application.yml config/application.yml
 
-# 容器内在线拉取dex-tools纯Java包，无架构绑定
+# 1. 先创建业务目录（不要跑到tools子目录里创建）
+RUN mkdir -p data/cache logs run .cache/android-cache .cache/android-external .cache/android-files \
+    && find scripts -type d -name __pycache__ -prune -exec rm -rf {} + \
+    && find scripts -type f -name "*.pyc" -delete
+
+# 2. 独立下载dex-tools，增加重试，避免外网下载失败
 RUN mkdir -p tools && cd tools \
-    && curl -fsSL https://github.com/pxb1988/dex2jar/releases/download/v2.4/dex-tools-v2.4.zip -o dex-tools.zip \
+    && curl --retry 3 --retry-delay 5 -L https://github.com/pxb1988/dex2jar/releases/download/v2.4/dex-tools-v2.4.zip -o dex-tools.zip \
     && unzip -q dex-tools.zip \
     && rm -f dex-tools.zip \
     && chmod +x dex-tools-v2.4/*.sh \
-    && rm -rf dex-tools-v2.4/*.exe dex-tools-v2.4/*.bat dex-tools-v2.4/*.dll \
-    && mkdir -p data/cache logs run .cache/android-cache .cache/android-external .cache/android-files \
-    && find scripts -type d -name __pycache__ -prune -exec rm -rf {} + \
-    && find scripts -type f -name "*.pyc" -delete \
-    && groupadd -r playhub \
+    && rm -rf dex-tools-v2.4/*.exe dex-tools-v2.4/*.bat dex-tools-v2.4/*.dll
+
+# 3. 用户创建和权限单独一层，逻辑解耦
+RUN groupadd -r playhub \
     && useradd -r -g playhub -d /opt/playhub playhub \
     && chown -R playhub:playhub /opt/playhub
 
