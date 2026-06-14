@@ -4,17 +4,21 @@ on:
   workflow_dispatch:
 
 env:
-  # 只在这里一次性自定义，全文自动复用
+  # 仅在此处自定义，全文自动复用
   IMAGE_REGISTRY_NAME: hurryos/playhub
   IMAGE_TAG: local-build
-  ARTIFACT_PREFIX: playhub-multiarch
+  ARTIFACT_PREFIX: playhub
 
 jobs:
   build-and-export:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]
     env:
       FULL_IMAGE_TAG: ${{ env.IMAGE_REGISTRY_NAME }}:${{ env.IMAGE_TAG }}
-      ARTIFACT_NAME: ${{ env.ARTIFACT_PREFIX }}-${{ github.sha }}
+      # 制品名自带架构区分，不会覆盖
+      ARTIFACT_NAME: ${{ env.ARTIFACT_PREFIX }}-${{ github.sha }}-${{ matrix.platform }}
 
     steps:
       - name: Checkout code
@@ -26,21 +30,20 @@ jobs:
       - name: Set up Docker Buildx builder
         uses: docker/setup-buildx-action@v3
 
-      # 已删除Docker Hub登录步骤，不再推送镜像
-      - name: Build multi-platform image & export tar
+      - name: Build single arch image & export tar
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platform }}
           push: false
-          load: false
+          load: true
           tags: ${{ env.FULL_IMAGE_TAG }}
-          outputs: type=docker,dest=${{ env.ARTIFACT_NAME }}.tar
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
 
-      - name: Upload tar package to workflow artifacts
+      - name: Export image to tar archive
+        run: docker save -o ${{ env.ARTIFACT_NAME }}.tar ${{ env.FULL_IMAGE_TAG }}
+
+      - name: Upload tar package to artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME }}
