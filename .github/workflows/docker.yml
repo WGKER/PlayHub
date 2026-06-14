@@ -12,6 +12,7 @@ env:
 jobs:
   build-and-export:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       matrix:
         platform: [linux/amd64, linux/arm64]
@@ -32,6 +33,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: false
           load: true
+          pull: true
           tags: ${{ env.IMAGE_REGISTRY_NAME }}:${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
